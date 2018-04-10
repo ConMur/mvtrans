@@ -17,6 +17,10 @@ fn main() {
     let lines = mvtrans::parse(&parser);
 
     for line in lines.iter() {
-        println!("{}", line);
+        println!("{}", line.context);
+        println!("{}", line.speaker);
+        for d in line.data.iter() {
+            println!("{}", d);
+        }
     }
 }

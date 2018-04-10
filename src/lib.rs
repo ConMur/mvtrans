@@ -8,8 +8,15 @@ use std::io::prelude::*;
 use std::string::String;
 
 pub struct Parser {
+    pub file_name : String,
     pub json_data : Value,
 }   
+
+pub struct UntransLine {
+    pub context : String,
+    pub speaker: String,
+    pub data : Vec<String>,
+}
 
 impl Parser {
     pub fn new(path : &Path) -> Parser {
@@ -19,23 +26,36 @@ impl Parser {
         file.read_to_string(&mut contents).expect("Could not read from file"); 
 
         let json_data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
+        let file_name = String::from(path.file_name().expect("Unable to determine file name").to_str().unwrap());
 
-        Parser {json_data}
+        Parser {file_name, json_data}
     } 
 }
 
-pub fn parse(parser : &Parser) -> Vec<String> {
+pub fn parse(parser : &Parser) -> Vec<UntransLine> {
     let mut untranslated_lines = Vec::new();
+    let mut line = UntransLine{context: "".to_string(), speaker: "".to_string(), data: Vec::new()};
 
-    for event in parser.json_data["events"].as_array().unwrap().iter() {
+    for (event_num, event) in parser.json_data["events"].as_array().unwrap().iter().enumerate() {
         if event["pages"].is_array() {
-        for page in event["pages"].as_array().unwrap().iter() {
+        for (page_num, page) in event["pages"].as_array().unwrap().iter().enumerate() {
             if page["list"].is_array() {
-            for list in page["list"].as_array().unwrap().iter() {
-                if list["code"] == 401 {
+            for (list_num, list) in page["list"].as_array().unwrap().iter().enumerate() {
+                if list["code"] == 101 {
+                    //New character is speaking
+                    if line.context != "" {
+                        untranslated_lines.push(line);
+
+                        let speaker = String::from(list["parameters"][0].as_str().unwrap());
+                        line.context = String::from(format!("{}/events/{}/pages/{}/list/{}", parser.file_name, event_num, page_num, list_num));
+                        line = UntransLine{context, speaker, data: Vec::new()};
+                    }
+                }
+                else if list["code"] == 401 {
                     if list["parameters"].is_array() {
                     for param in list["parameters"].as_array().unwrap().iter() {
-                        untranslated_lines.push(String::from(param.as_str().unwrap()));
+                        
+                        line.data.push(String::from(param.as_str().unwrap()));
                     }
                     }
                 }
