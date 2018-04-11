@@ -45,16 +45,16 @@ pub fn parse(parser : &Parser) -> Vec<UntransLine> {
                     //New character is speaking
                     if line.context != "" {
                         untranslated_lines.push(line);
-
-                        let speaker = String::from(list["parameters"][0].as_str().unwrap());
-                        line.context = String::from(format!("{}/events/{}/pages/{}/list/{}", parser.file_name, event_num, page_num, list_num));
-                        line = UntransLine{context, speaker, data: Vec::new()};
                     }
+
+                    let speaker = String::from(list["parameters"][0].as_str().unwrap());
+                    let context = String::from(format!("{}/events/{}/pages/{}/list/{}", parser.file_name, event_num, page_num, list_num));
+                    line = UntransLine{context, speaker, data: Vec::new()};
                 }
                 else if list["code"] == 401 {
                     if list["parameters"].is_array() {
                     for param in list["parameters"].as_array().unwrap().iter() {
-                        
+                        //line.context = String::from(format!("{}/events/{}/pages/{}/list/{}", parser.file_name, event_num, page_num, list_num));
                         line.data.push(String::from(param.as_str().unwrap()));
                     }
                     }
@@ -66,4 +66,8 @@ pub fn parse(parser : &Parser) -> Vec<UntransLine> {
     }
 
     untranslated_lines
+}
+
+pub fn write_to_file(parser: &Parser, lines: &Vec<UntransLine>) {
+
 }
