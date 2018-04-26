@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "cargo run 'C:/Users/Connor/Documents/My Games/RJ197619/www/data/Map018.json'",
+            "command": "$Env:RUST_BACKTRACE=1; cargo run 'C:/Users/Connor/Documents/My Games/RJ197619/www/data/Map018.json'",
             "group": {
                 "kind": "build",
                 "isDefault": true

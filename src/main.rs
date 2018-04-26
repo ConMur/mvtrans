@@ -16,11 +16,13 @@ fn main() {
 
     let lines = mvtrans::parse(&parser);
 
+    //mvtrans::write_to_file(&parser, &lines);
+
+
     for line in lines.iter() {
         println!("{}", line.context);
         println!("{}", line.speaker);
-        for d in line.data.iter() {
-            println!("{}", d);
-        }
+        println!("{}", line.line);
     }
+    
 }
