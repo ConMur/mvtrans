@@ -3,7 +3,7 @@ Findings
 
 From `rpg_objects.js` in the GameInterpreter we see the following code
 
-```
+```javascript
 // Show Text
 Game_Interpreter.prototype.command101 = function() {
     if (!$gameMessage.isBusy()) {
@@ -39,7 +39,7 @@ This means when we see command 101 we do the following for translation:
 1. If the next command is 401, we have dialogue to translate. We can continue reading 401's for 
    more dialogue from the character described in command 101
 2. The data I'm looking at does not have choices but I assume it iterates choies in command 102 based on
-```
+```javascript
 // Show Choices
 Game_Interpreter.prototype.command102 = function() {
     if (!$gameMessage.isBusy()) {
