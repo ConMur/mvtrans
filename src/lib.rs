@@ -115,12 +115,18 @@ pub fn parse(parser : &Parser) -> Vec<UntransLine> {
             contexts.push(context.unwrap());
         }
 
+        let dialogue = unescape_quotes(dialogue);
         untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: dialogue})
     }
 
     untranslated_lines
 }
 
+/// Writes parsed results to a file
+///
+/// #Arguments
+/// * `parser` - The parser that parsed the data file
+/// * `lines` - The lines that were parsed
 pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
     let mut file_name = parser.file_name.clone();
     //Remove the 'json' from the end of the file name
@@ -149,6 +155,16 @@ pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
     }
 }
 
+/// This method changes \" into "" in the given line
+///
+/// #Arguments 
+/// `line` - The line to escape
+///
+/// #Returns
+/// The escaped line
+///
+/// #Remarks
+/// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
 fn escape_quotes(line : String) -> String {
     let mut v: Vec<char> = Vec::new();
 
@@ -157,6 +173,35 @@ fn escape_quotes(line : String) -> String {
         if c == '"' {
             v.push('"');
         }
+    }
+
+    v.into_iter().collect()
+}
+
+/// This method changes "" into \" in the given line
+///
+/// #Arguments 
+/// `line` - The line to unescape
+///
+/// #Returns
+/// The unescaped line
+///
+/// #Remarks
+/// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
+fn unescape_quotes(line: String) -> String {
+    let mut v: Vec<char> = Vec::new();
+
+    let mut first_quote = false;
+
+    for c in line.chars() {
+        if c == '"' && first_quote == false {
+            v.push('\\');
+            first_quote = true;
+            continue;
+        }
+
+        first_quote = false;
+        v.push(c);
     }
 
     v.into_iter().collect()
