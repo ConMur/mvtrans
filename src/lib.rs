@@ -16,13 +16,13 @@ pub struct Parser {
 }   
 
 pub struct UntransLine {
-    pub context : String,
-    pub speaker: String,
+    pub context : Vec<String>,
+    pub speaker: Vec<String>,
     pub line : String,
 }
 
 struct Line {
-    line : String,
+    line : String
 }
 
 impl Parser {
@@ -41,7 +41,10 @@ impl Parser {
 
 pub fn parse(parser : &Parser) -> Vec<UntransLine> {
     let mut untranslated_lines = Vec::new();
-    let mut line = UntransLine{context: "".to_string(), speaker: "".to_string(), line:"".to_string()};
+    //Remove the 'json' from the end of the file name
+    let mut file_name = parser.file_name.clone();
+    let pos = file_name.rfind('.').unwrap();
+    file_name.split_off(pos);
 
     let conn = Connection::open_in_memory().unwrap();
     conn.execute("PRAGMA encoding=\"UTF-8\";", &[]).unwrap();
@@ -69,19 +72,18 @@ pub fn parse(parser : &Parser) -> Vec<UntransLine> {
                 else if list["code"] == 401 {
                     if list["parameters"].is_array() {
                     for param in list["parameters"].as_array().unwrap().iter() {
-                        let context = String::from(format!("{}/events/{}/pages/{}/list/{}", parser.file_name, event_num, page_num, list_num));
+                        let context = String::from(format!("{}/events/{}/pages/{}/list/{}", file_name, event_num, page_num, list_num));
                         let dialogue = String::from(param.as_str().unwrap());
                         let speaker_clone = speaker.clone();
-                        line = UntransLine{context, speaker: speaker_clone, line: dialogue};
 
                         conn.execute("INSERT OR IGNORE INTO trans (line)
                                       VALUES (?1);", 
-                                      &[&line.line]).unwrap();
+                                      &[&dialogue]).unwrap();
                         conn.execute("INSERT INTO context(context, speaker, line)
                                       VALUES (?1, ?2, ?3);",
-                                      &[&line.context, &line.speaker, &line.line]).unwrap();
+                                      &[&context, &speaker_clone, &dialogue]).unwrap();
 
-                        println!("INSERTED LINE: {}", line.line);
+                        println!("INSERTED LINE: {}", dialogue);
                     }
                     }
                 }
@@ -99,38 +101,51 @@ pub fn parse(parser : &Parser) -> Vec<UntransLine> {
     }).unwrap();
 
 
-    for line in line_iter {
-        let dialogue = escape_quotes(line.unwrap().line);
+    for l in line_iter {
+        let dialogue = escape_quotes(l.unwrap().line);
 
         let mut stmt = conn.prepare(format!("SELECT context, speaker FROM context WHERE line = \'{}\';", dialogue.clone()).as_str()).unwrap();
         let context_iter = stmt.query_map(&[], |row| {
-            UntransLine {
-                context: row.get(0),
-                speaker: row.get(1),
-                line: dialogue.clone(),
-            }
+            row.get(0)
         }).unwrap();
 
+        let mut contexts = Vec::new();
+
         for context in context_iter {
-            untranslated_lines.push(context.unwrap());
+            contexts.push(context.unwrap());
         }
+
+        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: dialogue})
     }
 
     untranslated_lines
 }
 
-pub fn write_to_file(parser: &Parser, lines: &Vec<UntransLine>) {
+pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
     let mut file_name = parser.file_name.clone();
+    //Remove the 'json' from the end of the file name
+    let pos = file_name.rfind('.').unwrap();
+    file_name.split_off(pos);
+
+    //Add the .txt extension
     file_name.push_str(".txt");
     let mut file = File::create(file_name.as_str()).unwrap();
 
+    //File version
+    file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2");
     for line in lines.iter() {
-        file.write_all(line.context.as_bytes());
-        file.write_all(b"\n");
-        file.write_all(line.speaker.as_bytes());
-        file.write_all(b"\n");
+        file.write_all(b"> BEGIN STRING\n");
         file.write_all(line.line.as_bytes());
         file.write_all(b"\n");
+
+        file.write_all(b"> CONTEXT\n");
+        for context in line.context.iter() {
+            file.write_all(context.as_bytes());
+            file.write_all(b"\n");
+        }
+        file.write_all(b"\n");
+
+        file.write_all(b"> END STRING\n");
     }
 }
 
