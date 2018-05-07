@@ -3,7 +3,7 @@ extern crate mvtrans;
 use std::env;
 use std::path::Path;
 
-use mvtrans::Parser;
+use mvtrans::parser::Parser;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -14,8 +14,8 @@ fn main() {
 
     let parser : Parser = Parser::new(path);
 
-    let lines = mvtrans::parse(&parser);
+    let lines = parser.parse();
 
-    mvtrans::write_to_file(&parser, lines);
+    mvtrans::parser::write_to_file(&parser, lines);
    
 }
