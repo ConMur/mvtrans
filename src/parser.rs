@@ -20,16 +20,16 @@ pub struct UntransLine {
 }
 
 impl Parser {
-    pub fn new(path : &Path) -> Parser {
+    pub fn new(fname : &String) -> Parser {
+        let mut path = Path::new(fname);
         let mut file = File::open(path).expect("Invalid file provided");
 
         let mut contents = String::new();
         file.read_to_string(&mut contents).expect("Could not read from file"); 
 
         let json_data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
-        let file_name = String::from(path.file_name().expect("Unable to determine file name").to_str().unwrap());
 
-        Parser {file_name, json_data}
+        Parser {fname, json_data}
     } 
 
     /// Parses the given file into lines grouped together if they are the same.
@@ -175,8 +175,8 @@ pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
         file.write_all(line.line.as_bytes());
         file.write_all(b"\n");
 
-        file.write_all(b"> CONTEXT\n");
         for context in line.context.iter() {
+            file.write_all(b"> CONTEXT: ");
             file.write_all(context.as_bytes());
             file.write_all(b"\n");
         }
