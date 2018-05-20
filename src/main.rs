@@ -7,6 +7,7 @@ use mvtrans::parser::Parser;
 use mvtrans::patcher::Patcher;
 
 fn main() {
+    //TODO: CLI for parse and patch
     let args: Vec<String> = env::args().collect();
 
     let source_file = format!("{}.json", &args[1]);
@@ -23,6 +24,6 @@ fn main() {
 
     patcher.patch();
 
-    patcher.write_to_file();
+    patcher.write_to_file("test.json".to_string());
    
 }

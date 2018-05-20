@@ -2,7 +2,6 @@ use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
 use std::string::String;
-use std::error::Error;
 
 use std::io::BufReader;
 
@@ -15,6 +14,14 @@ pub struct Patcher {
 }
 
 impl Patcher {
+    /// Creates a new patcher 
+    /// 
+    /// #Arguments
+    /// * source_file - a path to the file containing the original json file
+    /// * patch_file - a path to the file containing the translated patch
+    /// 
+    /// #Returns
+    /// A new patcher
     pub fn new(source_file : String, patch_file : String) -> Patcher {
         let mut source = File::open(source_file).expect("Invalid file provided");
         let mut patch = File::open(patch_file).expect("Invalid file provided");
@@ -28,20 +35,8 @@ impl Patcher {
         Patcher{json_data, reader}
     }
 
+    /// Applies the patch to the data in memory
     pub fn patch(&mut self) {
-        /*
-        > BEGIN STRING
-　　　  ところで何でスパッツの下
-        > CONTEXT: Map018/events/6/pages/0/list/100
-        By the way, under those spats
-        > END STRING
-        > BEGIN STRING
-　　　  何も履いてないの？
-        > CONTEXT: Map018/events/6/pages/0/list/101
-        are you wearing anything?
-        > END STRING
-        */
-
         let mut contexts = Vec::new();
         let mut last_line_was_begin = false;
 
@@ -78,9 +73,12 @@ impl Patcher {
         }
     }  
 
-    pub fn write_to_file(&self) {
-        //TODO: change to actual path
-        fs::write("test.json",  self.json_data.to_string()).expect("Unable to write to file");
+    /// Writes the patch to a file
+    /// 
+    /// #Arguments
+    /// * out_file - the path to the file to write to
+    pub fn write_to_file(&self, out_file: String) {
+        fs::write(out_file,  self.json_data.to_string()).expect("Unable to write to file");
     }
 }
 
