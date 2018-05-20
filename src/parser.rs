@@ -29,7 +29,7 @@ impl Parser {
 
         let json_data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
 
-        Parser {fname, json_data}
+        Parser {file_name: fname.clone(), json_data}
     } 
 
     /// Parses the given file into lines grouped together if they are the same.
@@ -100,6 +100,7 @@ fn process_mv_code(list: &serde_json::Value, conn: &Connection, file_name: &Stri
         if list["parameters"].is_array() {
         for param in list["parameters"].as_array().unwrap().iter() {
             let context = String::from(format!("{}/events/{}/pages/{}/list/{}", file_name, event_num, page_num, list_num));
+            //TODO: see if we can work with a &Value the allow escaped characters such as \"
             let dialogue = String::from(param.as_str().unwrap());
             let speaker_clone = String::from("");
 
@@ -169,7 +170,7 @@ pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
     let mut file = File::create(file_name.as_str()).unwrap();
 
     //File version
-    file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2");
+    file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n");
     for line in lines.iter() {
         file.write_all(b"> BEGIN STRING\n");
         file.write_all(line.line.as_bytes());
