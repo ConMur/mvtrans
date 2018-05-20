@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "$Env:RUST_BACKTRACE=1; cargo run Map018.json",
+            "command": "$Env:RUST_BACKTRACE=1; cargo run Map018",
             "group": {
                 "kind": "build",
                 "isDefault": true
