@@ -1,29 +1,112 @@
 extern crate mvtrans;
+extern crate clap;
 
-use std::env;
 use std::path::Path;
+use std::path::PathBuf;
+use std::io;
+use std::io::ErrorKind;
+use std::fs;
 
 use mvtrans::parser::Parser;
 use mvtrans::patcher::Patcher;
 
+use clap::{Arg, App};
+
 fn main() {
-    //TODO: CLI for parse and patch
-    let args: Vec<String> = env::args().collect();
+    let matches = App::new("mvtrans")
+                          .version("0.2")
+                          .author("Connor")
+                          .about("Creates files for translating RPGMaker MV Games and then applies those patches to the game")
+                          .arg(Arg::with_name("input")
+                               .help("The input directory. Must contain a supported game.")
+                               .required(true)
+                               .index(1))
+                          .arg(Arg::with_name("patch")
+                               .short("p")
+                               .value_name("PATCH")
+                               .takes_value(true)
+                               .help("The patch to use. To use an existing patch, supply a directory containing a patch or a zip file. To create a new patch, supply a target empty directory."))
+                          .arg(Arg::with_name("output")
+                               .short("o")
+                               .value_name("OUTPUT")
+                               .takes_value(true)
+                               .help("The target directory. Cannot be the same as the input directory. Supply a directory containing a previously translated game or a new directory."))
+                          .get_matches();
 
-    let source_file = format!("{}.json", &args[1]);
-    let patch_file = format!("{}.txt", &args[1]);
-/*
-    let parser : Parser = Parser::new(&source_file);
+    let mut input_dir : Option<PathBuf> = None;
+    let mut patch_dir : Option<PathBuf> = None;
+    let mut output_dir : Option<PathBuf> = None;
 
-    let lines = parser.parse();
+    if let Some(input) = matches.value_of("input") {
+        input_dir = Some(PathBuf::from(input));
 
-    mvtrans::parser::write_to_file(&parser, lines);*/
-    
+        //Create default directories
+        if let Some(patch) = matches.value_of("patch") {
+            patch_dir = Some(PathBuf::from(patch));
+        }
+        else {
+            //TODO: replace with log - warn
+            eprintln!("WARN: No patch directory provided!");
+                
+            //Set the path directory to default
+            let mut default_patch_dir = input_dir.unwrap().clone().into_os_string();
+            default_patch_dir.push("_patch");
+            patch_dir = Some(PathBuf::from(default_patch_dir));
+        }
 
-    let mut patcher : Patcher = Patcher::new(source_file, patch_file);
+        if let Some(output) = matches.value_of("output"){
+            output_dir = Some(PathBuf::from(output));
+        }
+        else {
+            //TODO: replace with log - warn
+            eprintln!("WARN: No output directory provided!");
 
-    patcher.patch();
+            let mut default_output_dir = input_dir.unwrap().clone().into_os_string();
+            default_output_dir.push("_translated");
+            output_dir = Some(PathBuf::from(default_output_dir));
+        }
 
-    patcher.write_to_file("test.json".to_string());
-   
+        //Ensure these are directories
+        if !input_dir.unwrap().is_dir() {
+            eprintln!("ERROR: Input path must be a directory!");
+        }
+        if !patch_dir.unwrap().is_dir() {
+            eprintln!("ERROR: Patch path must be a directory!");
+        }
+        if !output_dir.unwrap().is_dir() {
+            eprintln!("ERROR: Output path must be a directory!");
+        }
+
+        if empty_dir(&patch_dir.unwrap()).unwrap() {
+            //Parse stuff from the input directory
+            let parser = Parser::new(&input_dir.unwrap());
+            parser.parse();
+
+            //Write parsed data to patch directory
+            parser.write_to_file(&patch_dir.unwrap());
+        }
+        else {
+            //Read from the patch folder
+            let patcher = Patcher::new(&input_dir.unwrap(), &patch_dir.unwrap());
+            patcher.patch();
+
+            //Write patched output to output directory
+            patcher.write_to_file(&output_dir);
+        }
+    }
+    else {
+        //TODO log- error and exit
+        eprintln!("ERROR: no input directory provided!");
+    }
+}
+
+fn empty_dir(dir: &Path) -> io::Result<bool> {
+    if dir.is_dir() {
+        let entry = fs::read_dir(dir)?;
+
+        Ok(entry.count() == 0)
+    }
+    else {
+        Err(io::Error::new(ErrorKind::InvalidInput, "The given path is not a directory"))
+    }
 }
