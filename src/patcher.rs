@@ -3,6 +3,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::string::String;
 
+use std::path::PathBuf;
 use std::io::BufReader;
 
 use serde_json;
@@ -22,7 +23,7 @@ impl Patcher {
     /// 
     /// #Returns
     /// A new patcher
-    pub fn new(source_file : String, patch_file : String) -> Patcher {
+    pub fn new(source_file : &PathBuf, patch_file : &PathBuf) -> Patcher {
         let mut source = File::open(source_file).expect("Invalid file provided");
         let mut patch = File::open(patch_file).expect("Invalid file provided");
         
@@ -77,7 +78,7 @@ impl Patcher {
     /// 
     /// #Arguments
     /// * out_file - the path to the file to write to
-    pub fn write_to_file(&self, out_file: String) {
+    pub fn write_to_file(&self, out_file: &PathBuf) {
         fs::write(out_file,  self.json_data.to_string()).expect("Unable to write to file");
     }
 }

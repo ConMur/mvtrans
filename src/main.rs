@@ -49,7 +49,7 @@ fn main() {
             eprintln!("WARN: No patch directory provided!");
                 
             //Set the path directory to default
-            let mut default_patch_dir = input_dir.unwrap().clone().into_os_string();
+            let mut default_patch_dir = input_dir.clone().unwrap().into_os_string();
             default_patch_dir.push("_patch");
             patch_dir = Some(PathBuf::from(default_patch_dir));
         }
@@ -61,33 +61,37 @@ fn main() {
             //TODO: replace with log - warn
             eprintln!("WARN: No output directory provided!");
 
-            let mut default_output_dir = input_dir.unwrap().clone().into_os_string();
+            let mut default_output_dir = input_dir.clone().unwrap().into_os_string();
             default_output_dir.push("_translated");
             output_dir = Some(PathBuf::from(default_output_dir));
         }
 
+        let input_dir = input_dir.unwrap();
+        let patch_dir = patch_dir.unwrap();
+        let output_dir = output_dir.unwrap();
+
         //Ensure these are directories
-        if !input_dir.unwrap().is_dir() {
+        if !input_dir.is_dir() {
             eprintln!("ERROR: Input path must be a directory!");
         }
-        if !patch_dir.unwrap().is_dir() {
+        if !patch_dir.is_dir() {
             eprintln!("ERROR: Patch path must be a directory!");
         }
-        if !output_dir.unwrap().is_dir() {
+        if !output_dir.is_dir() {
             eprintln!("ERROR: Output path must be a directory!");
         }
 
-        if empty_dir(&patch_dir.unwrap()).unwrap() {
+        if empty_dir(&patch_dir).unwrap() {
             //Parse stuff from the input directory
-            let parser = Parser::new(&input_dir.unwrap());
+            let mut parser = Parser::new(&input_dir);
             parser.parse();
 
             //Write parsed data to patch directory
-            parser.write_to_file(&patch_dir.unwrap());
+            parser.write_to_file(&patch_dir);
         }
         else {
             //Read from the patch folder
-            let patcher = Patcher::new(&input_dir.unwrap(), &patch_dir.unwrap());
+            let mut patcher = Patcher::new(&input_dir, &patch_dir);
             patcher.patch();
 
             //Write patched output to output directory
