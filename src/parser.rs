@@ -14,6 +14,7 @@ pub struct Parser {
     input_dir : PathBuf,
     json_data : Vec<(Value, String)>,
     untranslated_lines: Vec<UntransLine>,
+    file_names : Vec<String>,
 }   
 
 pub struct UntransLine {
@@ -34,11 +35,13 @@ impl Parser {
         let entries = fs::read_dir(&input_dir.as_path()).unwrap();
 
         let mut json_data = Vec::new();
+        let mut file_names = Vec::new();
 
         //Load all the json data
         for entry in entries {
             let path = entry.unwrap().path();
             let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
+            file_names.push(file_name.clone());
             let mut file = File::open(path).expect("Invalid file provided");
             let mut contents = String::new();
             file.read_to_string(&mut contents).expect("Could not read from file"); 
@@ -47,7 +50,7 @@ impl Parser {
             json_data.push((data, file_name));
         }
 
-        Parser {input_dir: input_dir.clone(), json_data, untranslated_lines: Vec::new()}
+        Parser {input_dir: input_dir.clone(), json_data, untranslated_lines: Vec::new(), file_names: file_names}
     } 
 
     /// Parses the given file into lines grouped together if they are the same.
@@ -98,31 +101,36 @@ impl Parser {
     /// #Arguments
     /// * `lines` - The lines that were parsed
     /// * `patch_dir` - The directory to place the patch
-    pub fn write_to_file(&self, patch_dir: &PathBuf) {
-        let mut file_name = patch_dir.file_name().unwrap().to_os_string().into_string().unwrap();
-        //Remove the 'json' from the end of the file name
-        let pos = file_name.rfind('.').unwrap();
-        file_name.split_off(pos);
+    pub fn write_to_file(&mut self, patch_dir: &PathBuf) {
+        for file_name in self.file_names.iter_mut() {
+            //Remove the 'json' from the end of the file name
+            let pos = file_name.rfind('.').unwrap();
+            file_name.split_off(pos);
 
-        //Add the .txt extension
-        file_name.push_str(".txt");
-        let mut file = File::create(file_name).unwrap();
+            //Add the .txt extension
+            file_name.push_str(".txt");
 
-        //File version
-        file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n").unwrap();
-        for line in self.untranslated_lines.iter() {
-            file.write_all(b"> BEGIN STRING\n").unwrap();
-            file.write_all(line.line.as_bytes()).unwrap();
-            file.write_all(b"\n").unwrap();
+            //Create the file and write to it
+            let mut path = patch_dir.clone();
+            path.push(file_name);
+            let mut file = File::create(path).unwrap();
 
-            for context in line.context.iter() {
-                file.write_all(b"> CONTEXT: ").unwrap();
-                file.write_all(context.as_bytes()).unwrap();
+            //File version
+            file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n").unwrap();
+            for line in self.untranslated_lines.iter() {
+                file.write_all(b"> BEGIN STRING\n").unwrap();
+                file.write_all(line.line.as_bytes()).unwrap();
                 file.write_all(b"\n").unwrap();
-            }
-            file.write_all(b"\n").unwrap();
 
-            file.write_all(b"> END STRING\n").unwrap();
+                for context in line.context.iter() {
+                    file.write_all(b"> CONTEXT: ").unwrap();
+                    file.write_all(context.as_bytes()).unwrap();
+                    file.write_all(b"\n").unwrap();
+                }
+                file.write_all(b"\n").unwrap();
+
+                file.write_all(b"> END STRING\n").unwrap();
+            }
         }
     }
 }

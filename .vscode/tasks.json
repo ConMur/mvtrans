@@ -15,11 +15,12 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "$Env:RUST_BACKTRACE=1; cargo run -i /test/game",
+            "command": "$Env:RUST_BACKTRACE=1; cargo run ./test/game",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
-            }
+            },
+            "problemMatcher": []
         }
     ]
 }

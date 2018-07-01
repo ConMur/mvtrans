@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::io;
 use std::io::ErrorKind;
 use std::fs;
+use std::process;
 
 use mvtrans::parser::Parser;
 use mvtrans::patcher::Patcher;
@@ -36,6 +37,8 @@ fn main() {
     let mut input_dir : Option<PathBuf> = None;
     let mut patch_dir : Option<PathBuf> = None;
     let mut output_dir : Option<PathBuf> = None;
+    let mut patch_given = false;
+    let mut output_given = false;
 
     if let Some(input) = matches.value_of("input") {
         input_dir = Some(PathBuf::from(input));
@@ -43,26 +46,53 @@ fn main() {
         //Create default directories
         if let Some(patch) = matches.value_of("patch") {
             patch_dir = Some(PathBuf::from(patch));
+            patch_given = true;
         }
         else {
             //TODO: replace with log - warn
             eprintln!("WARN: No patch directory provided!");
                 
             //Set the path directory to default
-            let mut default_patch_dir = input_dir.clone().unwrap().into_os_string();
-            default_patch_dir.push("_patch");
+            let mut default_patch_dir = input_dir.clone().unwrap();
+            let mut file_name = default_patch_dir.file_name().unwrap().to_os_string();
+            file_name.push("_patch");
+            default_patch_dir.set_file_name(file_name);
+
+            //Create the default directory
+            if !default_patch_dir.exists() {
+                let result = fs::create_dir(default_patch_dir.clone());
+                match result {
+                    Ok(val) => {/*do nothing*/}
+                    Err(e) => {eprintln!("{}", e); process::exit(1);}
+                }
+            }
+            
             patch_dir = Some(PathBuf::from(default_patch_dir));
         }
 
         if let Some(output) = matches.value_of("output"){
             output_dir = Some(PathBuf::from(output));
+            output_given = true;
         }
         else {
             //TODO: replace with log - warn
             eprintln!("WARN: No output directory provided!");
 
-            let mut default_output_dir = input_dir.clone().unwrap().into_os_string();
-            default_output_dir.push("_translated");
+            //Set the path directory to default
+            let mut default_output_dir = input_dir.clone().unwrap();
+            let mut file_name = default_output_dir.file_name().unwrap().to_os_string();
+            file_name.push("_translated");
+            default_output_dir.set_file_name(file_name);
+
+            //Create the default directory if it does not already exist
+            if !default_output_dir.exists() {
+                let result = fs::create_dir(default_output_dir.clone());
+                match result {
+                    Ok(val) => {/*do nothing*/}
+                    Err(e) => {eprintln!("{}", e); process::exit(1);}
+                }
+            }
+
             output_dir = Some(PathBuf::from(default_output_dir));
         }
 
@@ -73,15 +103,18 @@ fn main() {
         //Ensure these are directories
         if !input_dir.is_dir() {
             eprintln!("ERROR: Input path must be a directory!");
+            process::exit(1);
         }
-        if !patch_dir.is_dir() {
+        if patch_given && !patch_dir.is_dir(){
             eprintln!("ERROR: Patch path must be a directory!");
+            process::exit(1);
         }
-        if !output_dir.is_dir() {
+        if output_given && !output_dir.is_dir() {
             eprintln!("ERROR: Output path must be a directory!");
+            process::exit(1);
         }
 
-        if empty_dir(&patch_dir).unwrap() {
+        if empty_dir(&patch_dir) {
             //Parse stuff from the input directory
             let mut parser = Parser::new(&input_dir);
             parser.parse();
@@ -101,16 +134,17 @@ fn main() {
     else {
         //TODO log- error and exit
         eprintln!("ERROR: no input directory provided!");
+        process::exit(1);
     }
 }
 
-fn empty_dir(dir: &Path) -> io::Result<bool> {
+fn empty_dir(dir: &Path) -> bool {
     if dir.is_dir() {
-        let entry = fs::read_dir(dir)?;
+        let entry = fs::read_dir(dir).unwrap();
 
-        Ok(entry.count() == 0)
+        return entry.count() == 0;
     }
     else {
-        Err(io::Error::new(ErrorKind::InvalidInput, "The given path is not a directory"))
+        return false;
     }
 }
