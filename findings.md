@@ -67,4 +67,16 @@ Game_Interpreter.prototype.setupChoices = function(params) {
     }.bind(this));
 };
 ```
-3. All other cases do not matter for translation
+
+3. Command 402 seems to be a condition that the author can specify such as a choice between "Help him" or "Leave him to die alone"
+```javascript
+// When [**]
+Game_Interpreter.prototype.command402 = function() {
+    if (this._branch[this._indent] !== this._params[0]) {
+        this.skipBranch();
+    }
+    return true;
+};
+```
+
+4. All other cases do not matter for translation
