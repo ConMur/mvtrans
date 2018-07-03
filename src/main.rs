@@ -114,7 +114,7 @@ fn main() {
             process::exit(1);
         }
 
-        if empty_dir(&patch_dir) {
+        if patch_given && empty_dir(&patch_dir) {
             //Parse stuff from the input directory
             let mut parser = Parser::new(&input_dir);
             parser.parse();

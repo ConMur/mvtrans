@@ -8,10 +8,8 @@ use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
 use std::string::String;
-use std::ffi::OsString;
 
 pub struct Parser {
-    input_dir : PathBuf,
     json_data : Vec<(Value, String)>,
     untranslated_lines: Vec<UntransLine>,
     file_names : Vec<String>,
@@ -40,17 +38,23 @@ impl Parser {
         //Load all the json data
         for entry in entries {
             let path = entry.unwrap().path();
+            //File name with extension eg Map18.json
             let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
-            file_names.push(file_name.clone());
+            file_names.push(file_name);
+            //File name with no extension eg Map18
+            let file_no_ext = String::from(path.file_stem().unwrap().to_str().unwrap());
+            
             let mut file = File::open(path).expect("Invalid file provided");
             let mut contents = String::new();
             file.read_to_string(&mut contents).expect("Could not read from file"); 
 
             let data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
-            json_data.push((data, file_name));
+
+            //Take the .json off the file name
+            json_data.push((data, file_no_ext));
         }
 
-        Parser {input_dir: input_dir.clone(), json_data, untranslated_lines: Vec::new(), file_names: file_names}
+        Parser {json_data, untranslated_lines: Vec::new(), file_names: file_names}
     } 
 
     /// Parses the given file into lines grouped together if they are the same.
