@@ -12,6 +12,7 @@ use serde_json::Value;
 struct FileData {
     json_data : Value,
     reader : BufReader<File>,
+    file_name: String
 }
 
 pub struct Patcher {
@@ -28,7 +29,7 @@ impl Patcher {
     /// 
     /// #Returns
     /// A new patcher
-    pub fn new(input_dir : &PathBuf, patch_dir : &PathBuf) -> Patcher {
+    pub fn new(input_dir: &PathBuf, patch_dir: &PathBuf) -> Patcher {
         let entries = fs::read_dir(&input_dir.as_path()).unwrap();
 
         let mut data : Vec<FileData> = Vec::new();
@@ -36,9 +37,12 @@ impl Patcher {
         for entry in entries {
             let input_file = entry.unwrap().path();
             let input_clone = input_file.clone();
-            let file_name = input_clone.file_name().unwrap();
             let mut source = File::open(input_file).expect("Invalid file provided");
 
+
+            //Open the corresponding .txt patch file
+            let mut file_name = String::from(input_clone.file_stem().unwrap().to_str().unwrap());
+            file_name.push_str(".txt");
             let mut patch_file = patch_dir.clone();
             patch_file.push(file_name);
             let mut patch = File::open(patch_file.as_path()).expect("Invalid file provided");
@@ -49,7 +53,8 @@ impl Patcher {
 
             let mut reader = BufReader::new(patch);
 
-            let mut file_data = FileData{json_data, reader};
+            let file_name_with_ext = String::from(input_clone.file_name().unwrap().to_str().unwrap());
+            let mut file_data = FileData{json_data, reader, file_name: file_name_with_ext};
             data.push(file_data);
         }
 
@@ -102,7 +107,9 @@ impl Patcher {
     /// * out_file - the path to the file to write to
     pub fn write_to_file(&self, out_file: &PathBuf) {
         for file in self.data.iter() {
-            fs::write(out_file, file.json_data.to_string()).expect("Unable to write to file");
+            let mut path = out_file.clone();
+            path.push(&file.file_name);
+            fs::write(path, file.json_data.to_string()).expect("Unable to write to file");
         }
     }
 }

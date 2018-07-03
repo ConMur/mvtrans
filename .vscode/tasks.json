@@ -15,7 +15,7 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "$Env:RUST_BACKTRACE=1; cargo run ./test/game",
+            "command": "$Env:RUST_BACKTRACE=1; cargo run ./test/game -p .\\test\\game_patch",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"
