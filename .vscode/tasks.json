@@ -6,11 +6,21 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "$Env:RUST_BACKTRACE=1; cargo run Map018",
+            "command": "cargo build",
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "$Env:RUST_BACKTRACE=1; cargo run ./test/game -p .\\test\\game_patch",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

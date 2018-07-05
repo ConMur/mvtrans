@@ -3,14 +3,16 @@ use serde_json;
 
 use rusqlite::Connection;
 
-use std::path::Path;
+use std::path::PathBuf;
 use std::fs::File;
+use std::fs;
 use std::io::prelude::*;
 use std::string::String;
 
 pub struct Parser {
-    pub file_name : String,
-    pub json_data : Value,
+    json_data : Vec<(Value, String)>,
+    untranslated_lines: Vec<UntransLine>,
+    file_names : Vec<String>,
 }   
 
 pub struct UntransLine {
@@ -20,16 +22,39 @@ pub struct UntransLine {
 }
 
 impl Parser {
-    pub fn new(fname : &String) -> Parser {
-        let mut path = Path::new(fname);
-        let mut file = File::open(path).expect("Invalid file provided");
+    /// Creates a new parser and loads in the contents of the files the parse
+    /// 
+    /// # Arguments
+    /// * `input_dir` - The directory with all the files to parse
+    /// 
+    /// # Returns 
+    /// A parser
+    pub fn new(input_dir: &PathBuf) -> Parser {
+        let entries = fs::read_dir(&input_dir.as_path()).unwrap();
 
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).expect("Could not read from file"); 
+        let mut json_data = Vec::new();
+        let mut file_names = Vec::new();
 
-        let json_data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
+        //Load all the json data
+        for entry in entries {
+            let path = entry.unwrap().path();
+            //File name with extension eg Map18.json
+            let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
+            file_names.push(file_name);
+            //File name with no extension eg Map18
+            let file_no_ext = String::from(path.file_stem().unwrap().to_str().unwrap());
+            
+            let mut file = File::open(path).expect("Invalid file provided");
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).expect("Could not read from file"); 
 
-        Parser {file_name: fname.clone(), json_data}
+            let data : Value = serde_json::from_str(&contents).expect("Unable to parse JSON data");
+
+            //Take the .json off the file name
+            json_data.push((data, file_no_ext));
+        }
+
+        Parser {json_data, untranslated_lines: Vec::new(), file_names: file_names}
     } 
 
     /// Parses the given file into lines grouped together if they are the same.
@@ -39,42 +64,119 @@ impl Parser {
     ///
     /// #Returns
     /// A vector of untranslated lines grouped together if they are the same line
-    pub fn parse(&self) -> Vec<UntransLine> {
-        //Remove the 'json' from the end of the file name
-        let mut file_name = self.file_name.clone();
-        let pos = file_name.rfind('.').unwrap();
-        file_name.split_off(pos);
+    pub fn parse(&mut self) {
+        for data in self.json_data.iter() {
+            //Remove the 'json' from the end of the file name
+            let (ref data, ref file_name) = data;
 
-        //Create the tables in the in memory database
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute("PRAGMA encoding=\"UTF-8\";", &[]).unwrap();
-        conn.execute("CREATE TABLE trans (
-                    line    TEXT PRIMARY KEY NOT NULL
-                    );", &[]).unwrap();
-        conn.execute("CREATE TABLE context (
-                    context TEXT NOT NULL,
-                    speaker TEXT,
-                    line TEXT,
-                    FOREIGN KEY(line) REFERENCES trans(line)
-                    );", &[]).unwrap();             
+            //Create the tables in the in memory database
+            let conn = Connection::open_in_memory().unwrap();
+            conn.execute("PRAGMA encoding=\"UTF-8\";", &[]).unwrap();
+            conn.execute("CREATE TABLE trans (
+                        line    TEXT PRIMARY KEY NOT NULL
+                        );", &[]).unwrap();
+            conn.execute("CREATE TABLE context (
+                        context TEXT NOT NULL,
+                        speaker TEXT,
+                        line TEXT,
+                        FOREIGN KEY(line) REFERENCES trans(line)
+                        );", &[]).unwrap();             
 
-        //Read through each line in the file
-        for (event_num, event) in self.json_data["events"].as_array().unwrap().iter().enumerate() {
-            if event["pages"].is_array() {
-            for (page_num, page) in event["pages"].as_array().unwrap().iter().enumerate() {
-                if page["list"].is_array() {
-                for (list_num, list) in page["list"].as_array().unwrap().iter().enumerate() {
-                    process_mv_code(list, &conn, &file_name, event_num, page_num, list_num);
+            //Read through each line in the file
+            for (event_num, event) in data["events"].as_array().unwrap().iter().enumerate() {
+                if event["pages"].is_array() {
+                for (page_num, page) in event["pages"].as_array().unwrap().iter().enumerate() {
+                    if page["list"].is_array() {
+                    for (list_num, list) in page["list"].as_array().unwrap().iter().enumerate() {
+                        process_mv_code(list, &conn, &file_name, event_num, page_num, list_num);
+                    }
+                    }
                 }
                 }
             }
+
+            self.untranslated_lines = collect_lines(&conn);
+        }
+    }
+
+
+    /// Writes parsed results to a file
+    ///
+    /// #Arguments
+    /// * `lines` - The lines that were parsed
+    /// * `patch_dir` - The directory to place the patch
+    pub fn write_to_file(&mut self, patch_dir: &PathBuf) {
+        for file_name in self.file_names.iter_mut() {
+            //Remove the 'json' from the end of the file name
+            let pos = file_name.rfind('.').unwrap();
+            file_name.split_off(pos);
+
+            //Add the .txt extension
+            file_name.push_str(".txt");
+
+            //Create the file and write to it
+            let mut path = patch_dir.clone();
+            path.push(file_name);
+            let mut file = File::create(path).unwrap();
+
+            //File version
+            file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n").unwrap();
+            for line in self.untranslated_lines.iter() {
+                file.write_all(b"> BEGIN STRING\n").unwrap();
+                file.write_all(line.line.as_bytes()).unwrap();
+                file.write_all(b"\n").unwrap();
+
+                for context in line.context.iter() {
+                    file.write_all(b"> CONTEXT: ").unwrap();
+                    file.write_all(context.as_bytes()).unwrap();
+                    file.write_all(b"\n").unwrap();
+                }
+                file.write_all(b"\n").unwrap();
+
+                file.write_all(b"> END STRING\n").unwrap();
             }
         }
-
-        collect_lines(&conn)
     }
- }
+}
 
+
+/// Takes the lines in the database and returns them organized into a `Vec<UntransLine>`. It groups together
+/// lines that are the same and makes note about which context they are from
+///
+/// #Arguments
+/// * `conn` - the connection to the database
+///
+/// #Returns
+/// Returns the untranslated lines grouped together if they are the same line
+fn collect_lines(conn: &Connection) -> Vec<UntransLine>{
+    let mut untranslated_lines = Vec::new();
+
+    let mut stmt = conn.prepare("SELECT line FROM trans;").unwrap();
+    let line_iter = stmt.query_map(&[], |row| {
+            row.get(0)
+    }).unwrap();
+
+
+    for l in line_iter {
+        let dialogue = escape_quotes(l.unwrap());
+
+        let mut stmt = conn.prepare(format!("SELECT context, speaker FROM context WHERE line = \'{}\';", dialogue.clone()).as_str()).unwrap();
+        let context_iter = stmt.query_map(&[], |row| {
+            row.get(0)
+        }).unwrap();
+
+        let mut contexts = Vec::new();
+
+        for context in context_iter {
+            contexts.push(context.unwrap());
+        }
+
+        let dialogue = unescape_quotes(dialogue);
+        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: dialogue})
+    }
+
+    untranslated_lines
+}
 
 
 /// Puts the line in the given list into the database depending on its code
@@ -115,77 +217,7 @@ fn process_mv_code(list: &serde_json::Value, conn: &Connection, file_name: &Stri
     }
 }
 
-/// Takes the lines in the database and returns them organized into a `Vec<UntransLine>`. It groups together
-/// lines that are the same and makes note about which context they are from
-///
-/// #Arguments
-/// * `conn` - the connection to the database
-///
-/// #Returns
-/// Returns the untranslated lines grouped together if they are the same line
-fn collect_lines(conn: &Connection) -> Vec<UntransLine> {
-    let mut untranslated_lines = Vec::new();
 
-    let mut stmt = conn.prepare("SELECT line FROM trans;").unwrap();
-    let line_iter = stmt.query_map(&[], |row| {
-            row.get(0)
-    }).unwrap();
-
-
-    for l in line_iter {
-        let dialogue = escape_quotes(l.unwrap());
-
-        let mut stmt = conn.prepare(format!("SELECT context, speaker FROM context WHERE line = \'{}\';", dialogue.clone()).as_str()).unwrap();
-        let context_iter = stmt.query_map(&[], |row| {
-            row.get(0)
-        }).unwrap();
-
-        let mut contexts = Vec::new();
-
-        for context in context_iter {
-            contexts.push(context.unwrap());
-        }
-
-        let dialogue = unescape_quotes(dialogue);
-        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: dialogue})
-    }
-
-    untranslated_lines
-}
-
-/// Writes parsed results to a file
-///
-/// #Arguments
-/// * `parser` - The parser that parsed the data file
-/// * `lines` - The lines that were parsed
-#[allow(unused_must_use)]
-pub fn write_to_file(parser: &Parser, lines: Vec<UntransLine>) {
-    let mut file_name = parser.file_name.clone();
-    //Remove the 'json' from the end of the file name
-    let pos = file_name.rfind('.').unwrap();
-    file_name.split_off(pos);
-
-    //Add the .txt extension
-    file_name.push_str(".txt");
-    let mut file = File::create(file_name.as_str()).unwrap();
-
-    //File version
-    file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n");
-    for line in lines.iter() {
-        file.write_all(b"> BEGIN STRING\n");
-        file.write_all(line.line.as_bytes());
-        file.write_all(b"\n");
-
-        for context in line.context.iter() {
-            file.write_all(b"> CONTEXT: ");
-            file.write_all(context.as_bytes());
-            file.write_all(b"\n");
-        }
-        file.write_all(b"\n");
-
-        file.write_all(b"> END STRING\n");
-    }
-}
 
 /// This method changes \" into "" in the given line
 ///
