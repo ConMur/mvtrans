@@ -73,6 +73,7 @@ fn main() {
         if let Some(output) = matches.value_of("output"){
             output_dir = Some(PathBuf::from(output));
             output_given = true;
+
         }
         else {
             //TODO: replace with log - warn
@@ -84,21 +85,34 @@ fn main() {
             file_name.push("_translated");
             default_output_dir.set_file_name(file_name);
 
-            //Create the default directory if it does not already exist
-            if !default_output_dir.exists() {
-                let result = fs::create_dir(default_output_dir.clone());
-                match result {
-                    Ok(val) => {/*do nothing*/}
-                    Err(e) => {eprintln!("{}", e); process::exit(1);}
-                }
-            }
-
             output_dir = Some(PathBuf::from(default_output_dir));
+        }
+
+        //Cannot have an output directory with no patch
+        if output_given && !patch_given {
+            eprintln!("ERROR: A patch directory must be given with an output directory");
+            process::exit(1);
         }
 
         let input_dir = input_dir.unwrap();
         let patch_dir = patch_dir.unwrap();
         let output_dir = output_dir.unwrap();
+
+        //Create the directories if they do not already exist
+        if !patch_dir.exists() {
+            let result = fs::create_dir(patch_dir.clone());
+            match result {
+                Ok(val) => {/*do nothing*/}
+                Err(e) => {eprintln!("{}", e); process::exit(1);}
+            }
+        }
+         if !output_dir.exists() {
+            let result = fs::create_dir(output_dir.clone());
+            match result {
+                Ok(val) => {/*do nothing*/}
+                Err(e) => {eprintln!("{}", e); process::exit(1);}
+            }
+        }
 
         //Ensure these are directories
         if !input_dir.is_dir() {
