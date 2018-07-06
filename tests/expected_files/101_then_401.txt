@@ -1,0 +1,6 @@
+> RPGMAKER TRANS PATCH FILE VERSION 3.2
+> BEGIN STRING
+Hello!
+> CONTEXT: 101_then_401/events/1/pages/0/list/1
+
+> END STRING

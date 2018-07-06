@@ -10,5 +10,4 @@ Cargo.lock
 **/*.rs.bk
 
 .vscode/*
-*.json
-*.txt
+test/
