@@ -21,6 +21,16 @@
                 "panel": "new"
             },
             "problemMatcher": []
-        }
+        },
+        {
+            "label": "Run tests",
+            "type": "shell",
+            "command": "cargo test",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
     ]
 }

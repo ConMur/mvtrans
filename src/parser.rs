@@ -191,32 +191,55 @@ fn collect_lines(conn: &Connection) -> Vec<UntransLine>{
 ///
 /// #Remarks
 /// * 101 - A new character is speaking
+/// * 102 - A list of choices
 /// * 401 - A line of dialogue
-/// * 402
+/// * 402 - A choice to make
 /// * 403
 fn process_mv_code(list: &serde_json::Value, conn: &Connection, file_name: &String, event_num: usize, page_num: usize, list_num: usize){
     if list["code"] == 101 {
         //New character is speaking 
     }
-    else if list["code"] == 401 {
+    else if list["code"] == 102 {
         if list["parameters"].is_array() {
-        for param in list["parameters"].as_array().unwrap().iter() {
-            let context = String::from(format!("{}/events/{}/pages/{}/list/{}", file_name, event_num, page_num, list_num));
-            //TODO: see if we can work with a &Value the allow escaped characters such as \"
-            let dialogue = String::from(param.as_str().unwrap());
-            let speaker_clone = String::from("");
-
-            conn.execute("INSERT OR IGNORE INTO trans (line)
-                          VALUES (?1);", 
-                        &[&dialogue]).unwrap();
-            conn.execute("INSERT INTO context(context, speaker, line)
-                          VALUES (?1, ?2, ?3);",
-                         &[&context, &speaker_clone, &dialogue]).unwrap();
+            //Code 102 has the text parameters in and array in the first element of the parameter array
+            for (param_num, param) in list["parameters"][0].as_array().unwrap().iter().enumerate() {
+                process_parameters(param, &conn, &file_name, event_num, page_num, list_num, param_num);
+            }
+        }
+    }
+    else if list["code"] == 401 || list["code"] == 402 {
+        if list["parameters"].is_array() {
+        for (param_num, param) in list["parameters"].as_array().unwrap().iter().enumerate() {
+           process_parameters(param, &conn, &file_name, event_num, page_num, list_num, param_num);
         }
         }
     }
 }
 
+/// Parses a parameter and puts it into the database
+/// #Arguments
+/// * `param` - the parameter to parse
+/// * `conn` - the connection to the database. Used to insert into the database
+/// * `file_name` - the name of the file the line comes from without the extension
+/// * `event_num` - the number of the event this line is in
+/// * `page_num` - the number of the page this line is in
+/// * `list_num` - the number of the list this line is in
+/// * `param_num` - the number of the parameter this line is in
+fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &String, event_num: usize, page_num: usize, list_num: usize, param_num: usize){
+    let context = String::from(format!("{}/events/{}/pages/{}/list/{}/parameters/{}", file_name, event_num, page_num, list_num, param_num));
+    //TODO: see if we can work with a &Value to allow escaped characters such as \"
+    if param.is_string() {
+        let line = String::from(param.as_str().unwrap());
+        let speaker = String::from("");
+
+        conn.execute("INSERT OR IGNORE INTO trans (line)
+                        VALUES (?1);", 
+                    &[&line]).unwrap();
+        conn.execute("INSERT INTO context(context, speaker, line)
+                        VALUES (?1, ?2, ?3);",
+                        &[&context, &speaker, &line]).unwrap();
+    }
+}
 
 
 /// This method changes \" into "" in the given line
