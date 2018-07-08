@@ -3,8 +3,6 @@ extern crate clap;
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::io;
-use std::io::ErrorKind;
 use std::fs;
 use std::process;
 
@@ -62,7 +60,7 @@ fn main() {
             if !default_patch_dir.exists() {
                 let result = fs::create_dir(default_patch_dir.clone());
                 match result {
-                    Ok(val) => {/*do nothing*/}
+                    Ok(_val) => {/*do nothing*/}
                     Err(e) => {eprintln!("{}", e); process::exit(1);}
                 }
             }
@@ -102,14 +100,14 @@ fn main() {
         if !patch_dir.exists() {
             let result = fs::create_dir(patch_dir.clone());
             match result {
-                Ok(val) => {/*do nothing*/}
+                Ok(_val) => {/*do nothing*/}
                 Err(e) => {eprintln!("{}", e); process::exit(1);}
             }
         }
          if !output_dir.exists() {
             let result = fs::create_dir(output_dir.clone());
             match result {
-                Ok(val) => {/*do nothing*/}
+                Ok(_val) => {/*do nothing*/}
                 Err(e) => {eprintln!("{}", e); process::exit(1);}
             }
         }
@@ -128,7 +126,7 @@ fn main() {
             process::exit(1);
         }
 
-        if patch_given && empty_dir(&patch_dir) {
+        if patch_given && !output_given {
             //Parse stuff from the input directory
             let mut parser = Parser::new(&input_dir);
             parser.parse();
@@ -136,7 +134,7 @@ fn main() {
             //Write parsed data to patch directory
             parser.write_to_file(&patch_dir);
         }
-        else {
+        else if patch_given && output_given {
             //Read from the patch folder
             let mut patcher = Patcher::new(&input_dir, &patch_dir);
             patcher.patch();
