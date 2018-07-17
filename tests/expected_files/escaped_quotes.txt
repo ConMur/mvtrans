@@ -1,6 +1,11 @@
 > RPGMAKER TRANS PATCH FILE VERSION 3.2
 > BEGIN STRING
 Hello \"My Dude\"!
-> CONTEXT: 102_then_402/events/1/pages/0/list/1/parameters/0
+> CONTEXT: escaped_quotes/events/1/pages/0/list/1/parameters/0
+
+> END STRING
+> BEGIN STRING
+My name is \N[2]!
+> CONTEXT: escaped_quotes/events/1/pages/0/list/2/parameters/0
 
 > END STRING

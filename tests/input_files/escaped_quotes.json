@@ -70,6 +70,10 @@
 					"code": 401,
 					"indent": 0,
 					"parameters": ["Hello \"My Dude\"!"]
+				}, {
+					"code": 401,
+					"indent": 0,
+					"parameters": ["My name is \\N[2]!"]
 				}]
 			}]
 		}

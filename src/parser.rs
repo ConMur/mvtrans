@@ -73,13 +73,13 @@ impl Parser {
             let conn = Connection::open_in_memory().unwrap();
             conn.execute("PRAGMA encoding=\"UTF-8\";", &[]).unwrap();
             conn.execute("CREATE TABLE trans (
-                        line    TEXT PRIMARY KEY NOT NULL
+                            line    TEXT PRIMARY KEY NOT NULL
                         );", &[]).unwrap();
             conn.execute("CREATE TABLE context (
-                        context TEXT NOT NULL,
-                        speaker TEXT,
-                        line TEXT,
-                        FOREIGN KEY(line) REFERENCES trans(line)
+                            context TEXT NOT NULL,
+                            speaker TEXT,
+                            line    TEXT,
+                            FOREIGN KEY(line) REFERENCES trans(line)
                         );", &[]).unwrap();             
 
             //Read through each line in the file
@@ -153,26 +153,21 @@ fn collect_lines(conn: &Connection) -> Vec<UntransLine>{
 
     let mut stmt = conn.prepare("SELECT line FROM trans;").unwrap();
     let line_iter = stmt.query_map(&[], |row| {
-            row.get(0)
+        row.get(0)
     }).unwrap();
 
-
     for l in line_iter {
-        let dialogue = escape_quotes(l.unwrap());
+        let line = l.unwrap();
 
-        let mut stmt = conn.prepare(format!("SELECT context, speaker FROM context WHERE line = \'{}\';", dialogue.clone()).as_str()).unwrap();
+        let mut stmt = conn.prepare(&format!("SELECT context, speaker FROM context WHERE line = \'{}\';", line)).unwrap();
         let context_iter = stmt.query_map(&[], |row| {
             row.get(0)
         }).unwrap();
 
-        let mut contexts = Vec::new();
+        let mut contexts = context_iter.map(|context| context.unwrap()).collect();
 
-        for context in context_iter {
-            contexts.push(context.unwrap());
-        }
-
-        let dialogue = unescape_quotes(dialogue);
-        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: dialogue})
+        let unescaped_line = unescape_quotes(line);
+        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: unescaped_line})
     }
 
     untranslated_lines
@@ -230,19 +225,22 @@ fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &
     //TODO: see if we can work with a &Value to allow escaped characters such as \"
     if param.is_string() {
         let line = String::from(param.as_str().unwrap());
+        let escaped_line = escape_quotes(line);
         let speaker = String::from("");
 
+        // Insert the untranslated line into the database
         conn.execute("INSERT OR IGNORE INTO trans (line)
                         VALUES (?1);", 
-                    &[&line]).unwrap();
+                    &[&escaped_line]).unwrap();
+
         conn.execute("INSERT INTO context(context, speaker, line)
                         VALUES (?1, ?2, ?3);",
-                        &[&context, &speaker, &line]).unwrap();
+                        &[&context, &speaker, &escaped_line]).unwrap();
     }
 }
 
 
-/// This method changes \" into "" in the given line
+/// This method changes \" into "" and \ into \\ in the given line
 ///
 /// #Arguments 
 /// `line` - The line to escape
@@ -252,20 +250,24 @@ fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &
 ///
 /// #Remarks
 /// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
+/// Same idea with the \ to \\ conversion
 fn escape_quotes(line : String) -> String {
     let mut v: Vec<char> = Vec::new();
 
-    for c in  line.chars() {
+    for c in line.chars() {
         v.push(c);
         if c == '"' {
             v.push('"');
+        }
+        else if c == '\\' {
+            v.push('\\');
         }
     }
 
     v.into_iter().collect()
 }
 
-/// This method changes "" into \" in the given line
+/// This method changes "" into \" and \\ into \ in the given line
 ///
 /// #Arguments 
 /// `line` - The line to unescape
@@ -275,19 +277,27 @@ fn escape_quotes(line : String) -> String {
 ///
 /// #Remarks
 /// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
+/// Same idea with the \\ to \ conversion
 fn unescape_quotes(line: String) -> String {
     let mut v: Vec<char> = Vec::new();
 
     let mut first_quote = false;
+    let mut first_slash = false;
 
     for c in line.chars() {
-        if c == '"' && first_quote == false {
+        if c == '"' && !first_quote {
             v.push('\\');
             first_quote = true;
             continue;
         }
+        if c == '\\' && !first_slash {
+            //Dont add anything to the vector
+            first_slash = true;
+            continue;
+        }
 
         first_quote = false;
+        first_slash = false;
         v.push(c);
     }
 
