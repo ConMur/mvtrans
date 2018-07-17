@@ -78,15 +78,13 @@ impl Parser {
             let conn = Connection::open_in_memory().unwrap();
             conn.execute("PRAGMA encoding=\"UTF-8\";", &[]).unwrap();
             conn.execute("CREATE TABLE trans (
-                            id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                            line    TEXT NOT NULL
+                            line    TEXT PRIMARY KEY NOT NULL
                         );", &[]).unwrap();
             conn.execute("CREATE TABLE context (
                             context TEXT NOT NULL,
                             speaker TEXT,
                             line    TEXT,
-                            id      INTEGER, 
-                            FOREIGN KEY(id) REFERENCES trans(id)
+                            FOREIGN KEY(line) REFERENCES trans(line)
                         );", &[]).unwrap();             
 
             //Read through each line in the file
@@ -158,33 +156,23 @@ impl Parser {
 fn collect_lines(conn: &Connection) -> Vec<UntransLine>{
     let mut untranslated_lines = Vec::new();
 
-    let mut stmt = conn.prepare("SELECT id, line FROM trans;").unwrap();
+    let mut stmt = conn.prepare("SELECT line FROM trans;").unwrap();
     let id_iter = stmt.query_map(&[], |row| {
-        IdLine{
-            id: row.get(0),
-            line: row.get(1)
-        }
+        row.get(0)
     }).unwrap();
 
     for l in id_iter {
-        let l = l.unwrap();
-        let line = l.line;
+        let line = l.unwrap();
 
-        //let dialogue = escape_quotes(l.unwrap());
-
-        let mut stmt = conn.prepare(&format!("SELECT context, speaker FROM context WHERE id = \'{}\';", l.id)).unwrap();
+        let mut stmt = conn.prepare(&format!("SELECT context, speaker FROM context WHERE line = \'{}\';", line)).unwrap();
         let context_iter = stmt.query_map(&[], |row| {
             row.get(0)
         }).unwrap();
 
-        let mut contexts = Vec::new();
+        let mut contexts = context_iter.map(|context| context.unwrap()).collect();
 
-        for context in context_iter {
-            contexts.push(context.unwrap());
-        }
-
-        //let dialogue = unescape_quotes(dialogue);
-        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: line})
+        let unescaped_line = unescape_quotes(line);
+        untranslated_lines.push(UntransLine{context: contexts, speaker: Vec::new(), line: unescaped_line})
     }
 
     untranslated_lines
@@ -242,22 +230,17 @@ fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &
     //TODO: see if we can work with a &Value to allow escaped characters such as \"
     if param.is_string() {
         let line = String::from(param.as_str().unwrap());
+        let escaped_line = escape_quotes(line);
         let speaker = String::from("");
 
         // Insert the untranslated line into the database
         conn.execute("INSERT OR IGNORE INTO trans (line)
                         VALUES (?1);", 
-                    &[&line]).unwrap();
+                    &[&escaped_line]).unwrap();
 
-        // Determine the id of the entry just inserted
-        let mut stmt = conn.prepare("SELECT last_insert_rowid();").unwrap();
-        let mut line_iter = stmt.query_map(&[], |row| {
-                row.get(0)
-        }).unwrap();
-        let id: u8 = line_iter.next().unwrap().unwrap();
-        conn.execute("INSERT INTO context(context, speaker, line, id)
-                        VALUES (?1, ?2, ?3, ?4);",
-                        &[&context, &speaker, &line, &id]).unwrap();
+        conn.execute("INSERT INTO context(context, speaker, line)
+                        VALUES (?1, ?2, ?3);",
+                        &[&context, &speaker, &escaped_line]).unwrap();
     }
 }
 
@@ -279,6 +262,9 @@ fn escape_quotes(line : String) -> String {
         v.push(c);
         if c == '"' {
             v.push('"');
+        }
+        else if c == '\\' {
+            v.push('\\');
         }
     }
 
