@@ -21,11 +21,6 @@ pub struct UntransLine {
     pub line : String,
 }
 
-struct IdLine {
-    id: u8,
-    line: String,
-}
-
 impl Parser {
     /// Creates a new parser and loads in the contents of the files the parse
     /// 
@@ -245,7 +240,7 @@ fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &
 }
 
 
-/// This method changes \" into "" in the given line
+/// This method changes \" into "" and \ into \\ in the given line
 ///
 /// #Arguments 
 /// `line` - The line to escape
@@ -255,10 +250,11 @@ fn process_parameters(param: &serde_json::Value, conn: &Connection, file_name: &
 ///
 /// #Remarks
 /// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
+/// Same idea with the \ to \\ conversion
 fn escape_quotes(line : String) -> String {
     let mut v: Vec<char> = Vec::new();
 
-    for c in  line.chars() {
+    for c in line.chars() {
         v.push(c);
         if c == '"' {
             v.push('"');
@@ -271,7 +267,7 @@ fn escape_quotes(line : String) -> String {
     v.into_iter().collect()
 }
 
-/// This method changes "" into \" in the given line
+/// This method changes "" into \" and \\ into \ in the given line
 ///
 /// #Arguments 
 /// `line` - The line to unescape
@@ -281,19 +277,27 @@ fn escape_quotes(line : String) -> String {
 ///
 /// #Remarks
 /// We use this function because RPGMakerMV uses \" to escape quotes but SQLite uses "". 
+/// Same idea with the \\ to \ conversion
 fn unescape_quotes(line: String) -> String {
     let mut v: Vec<char> = Vec::new();
 
     let mut first_quote = false;
+    let mut first_slash = false;
 
     for c in line.chars() {
-        if c == '"' && first_quote == false {
+        if c == '"' && !first_quote {
             v.push('\\');
             first_quote = true;
             continue;
         }
+        if c == '\\' && !first_slash {
+            //Dont add anything to the vector
+            first_slash = true;
+            continue;
+        }
 
         first_quote = false;
+        first_slash = false;
         v.push(c);
     }
 
