@@ -152,11 +152,11 @@ fn collect_lines(conn: &Connection) -> Vec<UntransLine>{
     let mut untranslated_lines = Vec::new();
 
     let mut stmt = conn.prepare("SELECT line FROM trans;").unwrap();
-    let id_iter = stmt.query_map(&[], |row| {
+    let line_iter = stmt.query_map(&[], |row| {
         row.get(0)
     }).unwrap();
 
-    for l in id_iter {
+    for l in line_iter {
         let line = l.unwrap();
 
         let mut stmt = conn.prepare(&format!("SELECT context, speaker FROM context WHERE line = \'{}\';", line)).unwrap();
