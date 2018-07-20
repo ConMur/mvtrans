@@ -89,9 +89,10 @@ impl Patcher {
                     if !last_line_was_begin {
                         //This is a translated line
                         for context in contexts.iter() {
-                            let (event, page, list) = parse_context(context.clone());
+                            let (event, page, list, param) = parse_context(context.clone());
                             
-                            file.json_data["events"][event]["pages"][page]["list"][list] = serde_json::Value::String(l.clone());
+                            file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][param] 
+                                = serde_json::Value::String(l.clone());
                         }
                     }
                     //Untranslated lines are always after a > BEGIN STRING so this is where we reset the bool
@@ -109,29 +110,30 @@ impl Patcher {
         for file in self.data.iter() {
             let mut path = out_file.clone();
             path.push(&file.file_name);
-            fs::write(path, file.json_data.to_string()).expect("Unable to write to file");
+            fs::write(path, serde_json::to_string(&file.json_data).unwrap()).expect("Unable to write to file");
         }
     }
 }
 
-/// Looks through a context line to determine the event, page and list numbers
+/// Looks through a context line to determine the event, page, list and paramter numbers
 /// 
 /// #Arguments
 /// * context - the context to parse
 /// 
 /// #Returns
-/// A tuple containing (event, page, list) numbers as usize
+/// A tuple containing (event, page, list, parameter) numbers as usize
 /// 
 /// #Remarks
-/// A context looks like: Map018/events/6/pages/0/list/100
-fn parse_context(context: String) -> (usize, usize, usize) {
+/// A context looks like: Map018/events/6/pages/0/list/100/parmeters/0
+fn parse_context(context: String) -> (usize, usize, usize, usize) {
     //RPGMaker MV uses a backslash ('\') to escape characters so splitting by forward slash should be fine
     let parts: Vec<&str> = context.split("/").collect();
 
     let event : usize = parts[2].parse().unwrap();
     let page : usize = parts[4].parse().unwrap();
     let list : usize = parts[6].parse().unwrap();
+    let parameter : usize = parts[8].parse().unwrap();
 
-    (event, page, list)
+    (event, page, list, parameter)
 }
 
