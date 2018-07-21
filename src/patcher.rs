@@ -69,34 +69,47 @@ impl Patcher {
         for file in self.data.iter_mut() {
             for mut line in &mut file.reader.by_ref().lines() { 
                 let mut l = line.unwrap();
-                if l.starts_with("> ") {
-                    //This is a control line
 
-                    if l.starts_with("> CONTEXT: ") {
-                        l = l.split_off(11);
-                        contexts.push(l);
-                    }
-                    else if l.contains("> BEGIN STRING") {
-                        last_line_was_begin = true;
-                    }
-                    else if l.contains("> END STRING") {
-                        //Reset contexts
-                        contexts.clear();
-                    }
+                // Remove the comment portion of the line
+                if let Some(pos) = l.find("#") {
+                    l.split_off(pos);
+                    println!("LINE: {}", l);
                 }
-                else {
-                    //This is either a translated or untranslated line
-                    if !last_line_was_begin {
-                        //This is a translated line
-                        for context in contexts.iter() {
-                            let (event, page, list, param) = parse_context(context.clone());
-                            
-                            file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][param] 
-                                = serde_json::Value::String(l.clone());
+
+                // Remove any extra whitespace
+                let mut l = String::from(l.trim());
+
+                //Only patch if there is a translation provided on this line
+                if l.len() > 0 {
+                    if l.starts_with("> ") {
+                        //This is a control line
+
+                        if l.starts_with("> CONTEXT: ") {
+                            l = l.split_off(11);
+                            contexts.push(l);
+                        }
+                        else if l.contains("> BEGIN STRING") {
+                            last_line_was_begin = true;
+                        }
+                        else if l.contains("> END STRING") {
+                            //Reset contexts
+                            contexts.clear();
                         }
                     }
-                    //Untranslated lines are always after a > BEGIN STRING so this is where we reset the bool
-                    last_line_was_begin = false;
+                    else {
+                        //This is either a translated or untranslated line
+                        if !last_line_was_begin {
+                            //This is a translated line
+                            for context in contexts.iter() {
+                                let (event, page, list, param) = parse_context(context.clone());
+                                
+                                file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][param] 
+                                    = serde_json::Value::String(l.clone());
+                            }
+                        }
+                        //Untranslated lines are always after a > BEGIN STRING so this is where we reset the bool
+                        last_line_was_begin = false;
+                    }
                 }
             }
         }
