@@ -80,6 +80,16 @@
 					"code": 401,
 					"indent": 0,
 					"parameters": ["Nice weather, eh?"]
+				},
+                {
+					"code": 401,
+					"indent": 0,
+					"parameters": ["There is sun and stuff."]
+				},
+                {
+					"code": 401,
+					"indent": 0,
+					"parameters": ["Trees are a thing."]
 				}]
 			}]
 		}
