@@ -1,0 +1,26 @@
+> RPGMAKER TRANS PATCH FILE VERSION 3.2
+> BEGIN STRING
+Hello!
+> CONTEXT: 101_then_401/events/1/pages/0/list/1/parameters/0
+# Comment here
+> END STRING
+> BEGIN STRING
+How are you?
+> CONTEXT: 101_then_401/events/1/pages/0/list/2/parameters/0
+你好嗎? #This translates to "How are you"
+> END STRING
+> BEGIN STRING
+Nice weather, eh?
+> CONTEXT: 101_then_401/events/1/pages/0/list/3/parameters/0
+# So #many ##comments # ya# know# 
+> END STRING
+> BEGIN STRING
+There is sun and stuff.
+> CONTEXT: 101_then_401/events/1/pages/0/list/4/parameters/0
+#Comment right after the hash tag
+> END STRING
+> BEGIN STRING
+Trees are a thing.
+> CONTEXT: 101_then_401/events/1/pages/0/list/5/parameters/0
+樹#Comment right after translation
+> END STRING
