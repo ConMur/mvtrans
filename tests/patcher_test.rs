@@ -98,3 +98,4 @@ fn patcher_comments() {
 
     assert_eq!(expected_contents, actual_contents);
 }
+
