@@ -13,7 +13,7 @@ use clap::{Arg, App};
 
 fn main() {
     let matches = App::new("mvtrans")
-                          .version("0.2")
+                          .version("0.4")
                           .author("Connor")
                           .about("Creates files for translating RPGMaker MV Games and then applies those patches to the game")
                           .arg(Arg::with_name("input")
@@ -24,7 +24,7 @@ fn main() {
                                .short("p")
                                .value_name("PATCH")
                                .takes_value(true)
-                               .help("The patch to use. To use an existing patch, supply a directory containing a patch or a zip file. To create a new patch, supply a target empty directory."))
+                               .help("The patch to use. To use an existing patch, supply a directory containing a patch. To create a new patch, supply a target empty directory."))
                           .arg(Arg::with_name("output")
                                .short("o")
                                .value_name("OUTPUT")
@@ -36,7 +36,9 @@ fn main() {
     let mut patch_dir : Option<PathBuf> = None;
     let mut output_dir : Option<PathBuf> = None;
     let mut patch_given = false;
+    let mut patch_empty = false;
     let mut output_given = false;
+    let mut output_empty = false;
 
     if let Some(input) = matches.value_of("input") {
         input_dir = Some(PathBuf::from(input));
@@ -96,15 +98,27 @@ fn main() {
         let patch_dir = patch_dir.unwrap();
         let output_dir = output_dir.unwrap();
 
+        // Patch and output dir cannot be the same
+        if patch_dir == output_dir {
+            eprintln!("ERROR: The patch directory and the output directory cannot be the same.");
+            process::exit(1);
+        }
+
         //Create the directories if they do not already exist
         if !patch_dir.exists() {
+            patch_empty = true;
             let result = fs::create_dir(patch_dir.clone());
             match result {
                 Ok(_val) => {/*do nothing*/}
                 Err(e) => {eprintln!("{}", e); process::exit(1);}
             }
         }
-         if !output_dir.exists() {
+        else if empty_dir(&patch_dir){
+            patch_empty = true;
+        }
+
+        if !output_dir.exists() {
+             output_empty = true;
             let result = fs::create_dir(output_dir.clone());
             match result {
                 Ok(_val) => {/*do nothing*/}
@@ -126,7 +140,7 @@ fn main() {
             process::exit(1);
         }
 
-        if patch_given && !output_given {
+        if patch_empty {
             //Parse stuff from the input directory
             let mut parser = Parser::new(&input_dir);
             parser.parse();
@@ -134,7 +148,7 @@ fn main() {
             //Write parsed data to patch directory
             parser.write_to_file(&patch_dir);
         }
-        else if patch_given && output_given {
+        else {
             //Read from the patch folder
             let mut patcher = Patcher::new(&input_dir, &patch_dir);
             patcher.patch();
