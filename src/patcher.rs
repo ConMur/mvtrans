@@ -76,11 +76,21 @@ impl Patcher {
                     println!("LINE: {}", l);
                 }
 
-                // Remove any extra whitespace
-                let mut l = String::from(l.trim());
+                // Remove any extra whitespace to the right
+                // TODO: Change to left if I ever decide to support RTL text
+                let mut l = String::from(l.trim_right());
+
+                let mut is_only_whitespace = true;
+
+                for c in l.chars() {
+                    if !c.is_whitespace() {
+                        is_only_whitespace = false;
+                        break;
+                    }
+                }
 
                 //Only patch if there is a translation provided on this line
-                if l.len() > 0 {
+                if l.len() > 0 && !is_only_whitespace {
                     if l.starts_with("> ") {
                         //This is a control line
 
