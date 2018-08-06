@@ -13,7 +13,7 @@ use clap::{Arg, App};
 
 fn main() {
     let matches = App::new("mvtrans")
-                          .version("0.4")
+                          .version(env!("CARGO_PKG_VERSION"))
                           .author("Connor")
                           .about("Creates files for translating RPGMaker MV Games and then applies those patches to the game")
                           .arg(Arg::with_name("input")
