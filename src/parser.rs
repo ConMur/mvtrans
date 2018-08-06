@@ -11,7 +11,7 @@ use std::string::String;
 
 pub struct Parser {
     json_data : Vec<(Value, String)>,
-    untranslated_lines: Vec<UntransLine>,
+    untranslated_lines: Vec<Vec<UntransLine>>,
     file_names : Vec<String>,
 }   
 
@@ -40,6 +40,12 @@ impl Parser {
             let path = entry.unwrap().path();
             //File name with extension eg Map18.json
             let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
+
+            //Only map files are supported for now
+            if file_name.contains("MapInfos") || !file_name.contains("Map")  {
+                continue;
+            }
+
             file_names.push(file_name);
             //File name with no extension eg Map18
             let file_no_ext = String::from(path.file_stem().unwrap().to_str().unwrap());
@@ -53,7 +59,7 @@ impl Parser {
             //Take the .json off the file name
             json_data.push((data, file_no_ext));
         }
-
+                
         Parser {json_data, untranslated_lines: Vec::new(), file_names: file_names}
     } 
 
@@ -95,7 +101,7 @@ impl Parser {
                 }
             }
 
-            self.untranslated_lines = collect_lines(&conn);
+            self.untranslated_lines.push(collect_lines(&conn));
         }
     }
 
@@ -106,7 +112,7 @@ impl Parser {
     /// * `lines` - The lines that were parsed
     /// * `patch_dir` - The directory to place the patch
     pub fn write_to_file(&mut self, patch_dir: &PathBuf) {
-        for file_name in self.file_names.iter_mut() {
+        for (index, file_name) in self.file_names.iter_mut().enumerate() {
             //Remove the 'json' from the end of the file name
             let pos = file_name.rfind('.').unwrap();
             file_name.split_off(pos);
@@ -121,7 +127,7 @@ impl Parser {
 
             //File version
             file.write_all(b"> RPGMAKER TRANS PATCH FILE VERSION 3.2\n").unwrap();
-            for line in self.untranslated_lines.iter() {
+            for line in self.untranslated_lines[index].iter() {
                 file.write_all(b"> BEGIN STRING\n").unwrap();
                 file.write_all(line.line.as_bytes()).unwrap();
                 file.write_all(b"\n").unwrap();
