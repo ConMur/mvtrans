@@ -1,0 +1,11 @@
+> RPGMAKER TRANS PATCH FILE VERSION 3.2
+> BEGIN STRING
+Hello!
+> CONTEXT: Mapno_translation_given/events/1/pages/0/list/1/parameters/0
+
+> END STRING
+> BEGIN STRING
+Good evening?
+> CONTEXT: Mapno_translation_given/events/1/pages/0/list/1/parameters/0
+   
+> END STRING

@@ -39,9 +39,14 @@ impl Patcher {
             let input_clone = input_file.clone();
             let mut source = File::open(input_file).expect("Invalid file provided");
 
-
             //Open the corresponding .txt patch file
             let mut file_name = String::from(input_clone.file_stem().unwrap().to_str().unwrap());
+
+            //Only map files are supported for now
+            if file_name.contains("MapInfos") || !file_name.contains("Map")  {
+                continue;
+            }
+
             file_name.push_str(".txt");
             let mut patch_file = patch_dir.clone();
             patch_file.push(file_name);
