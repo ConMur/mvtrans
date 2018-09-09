@@ -117,9 +117,18 @@ impl Patcher {
                             //This is a translated line
                             for context in contexts.iter() {
                                 let (event, page, list, param) = parse_context(context.clone());
-                                
-                                file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][param] 
-                                    = serde_json::Value::String(l.clone());
+
+                                let code: u64 = file.json_data["events"][event]["pages"][page]["list"][list]["code"].as_u64().unwrap();
+
+                                // Code 402 has the translated lines in the first parameter of the parameters array
+                                if code == 102 {
+                                    file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][0][param] 
+                                        = serde_json::Value::String(l.clone());
+                                }
+                                else {                                
+                                    file.json_data["events"][event]["pages"][page]["list"][list]["parameters"][param] 
+                                        = serde_json::Value::String(l.clone());
+                                }
                             }
                         }
                         //Untranslated lines are always after a > BEGIN STRING so this is where we reset the bool
